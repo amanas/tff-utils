@@ -1,0 +1,106 @@
+---
+title: "TFF wip"
+author: "Andrés Mañas"
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    number_sections: yes
+  html_document:
+    toc: yes
+    toc_depth: 2
+vignette: |
+  %\VignetteIndexEntry{Vignette Title} %\VignetteEncoding{UTF-8} %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r setup, include = FALSE}
+library(TFFutils)
+setup.knitr()
+setup.pander()
+```
+
+Resumen de los datos históricos de localización de los dispositivos de medida:
+
+```{r, echo=F, results = 'asis'}
+all.locations <- get.parsed.location(2018,9)
+```
+
+# Tablas de frecuencia
+
+Tabla \ref{tabs:tabla-frecuencia}:
+
+```{r, echo=T, results = 'asis'}
+freq(all.locations$tipo_elem, 
+     style = 'rmarkdown', omit.headings=T, order='freq',
+     caption='\\label{tabs:tabla-frecuencia} Tabla de frecuencias')
+```
+
+Tabla \ref{tabs:tabla-frecuencia-api}:
+
+```{r, echo=T, results = 'asis'}
+my.freq(all.locations$tipo_elem, 
+        caption='\\label{tabs:tabla-frecuencia-api} Tabla de frecuencias')
+```
+
+# Tablas de contingencia
+
+Tabla \ref{tabs:tabla-contingencia}:
+
+```{r, echo=T, results = 'asis'}
+ctable(all.locations$tipo_elem, all.locations$tipo_elem, 
+       style = 'rmarkdown', omit.headings=T,
+       caption='\\label{tabs:tabla-contingencia} Tabla de contingencia')
+```
+
+Tabla \ref{tabs:tabla-contingencia-api}:
+
+```{r, echo=T, results = 'asis'}
+my.ctable(all.locations$tipo_elem, all.locations$tipo_elem, 
+          caption='\\label{tabs:tabla-contingencia-api} Tabla de contingencia')
+```
+
+# Descripción de variables
+
+Tabla \ref{tabs:tabla-descr}:
+
+```{r, echo=T, results = 'asis'}
+descr(all.locations, 
+      style='rmarkdown', omit.headings = T) %>% 
+    my.kable.default(caption='\\label{tabs:tabla-descr} Tabla de descripción de variables', digits=c(0,2,2))
+```
+
+Tabla \ref{tabs:tabla-descr-api}:
+
+```{r, echo=T, results = 'asis'}
+my.descr(all.locations, digits=c(0,2,2),
+         caption='\\label{tabs:tabla-descr-api} Tabla de descripción de variables')
+```
+
+# Resumen de datasets
+
+Tabla \ref{tabs:tabla-summary}:
+
+```{r, echo=T, results = 'asis'}
+dfSummary(all.locations, 
+          max.distinct.values=2, graph.col=F, omit.headings=T,
+          caption='\\label{tabs:tabla-summary} Tabla de resumen de datasets')
+```
+
+Tabla \ref{tabs:tabla-summary-api}:
+
+```{r, echo=T, results = 'asis'}
+my.dfSummary(all.locations, 
+          caption='\\label{tabs:tabla-summary-api} Tabla de resumen de datasets')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

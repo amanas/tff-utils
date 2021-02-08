@@ -1,0 +1,295 @@
+---
+title: "TFF wip"
+author: "Andrés Mañas"
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    number_sections: yes
+  html_document:
+    toc: yes
+    toc_depth: 2
+bibliography: /home/amanas/tff-madrid/book.bib
+vignette: |
+  %\VignetteIndexEntry{Vignette Title} %\VignetteEncoding{UTF-8} %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r setup, include = FALSE}
+library(TFFutils)
+setup.knitr()
+setup.pander()
+```
+
+La presente investigación se fundamenta en el estudio de dos conjutos de datos que pone a disposición pública el Ayuntamiento de Madrid:
+
+* [@metrics2018madrid]: Histórico de datos del tráfico desde 2013
+* [@locations2018madrid]: Ubicación de los puntos de medida del tráfico
+
+En los siguientes apartados hacemos una descripción exaustiva del contenido de ambos conjuntos de datos y de las acciones de preprocesado realizadas para poderlos utilizar.
+
+
+## Histórico de datos del tráfico desde 2013
+
+Éste primer conjunto de datos, [@metrics2018madrid], contiene el **histórico de medidas tomadas por los puntos de medida de tráfico de la ciudad de Madrid**. Los datos se publican en archivos que contienen los registros de un mes completo y se van incorporando mes a mes.
+
+Los diversos sistemas de control de tráfico de la ciudad de Madrid proporcionan periódicamente y de forma automática datos de todos los detectores de vehículos de los puntos de medida que controlan. 
+
+Si el sensor no proporciona información en un periodo, no se contabilizará esa información; no obstante, si el sensor proporciona información pero los parámetros de calidad de la misma no son óptimos la información se integra, pero se reporta como posible error. El error puede deberse a que el sensor detecta parámetros fuera de los rangos establecidos o porque alguno de los sensores que componen el punto de medida no esté operativo (por ejemplo, en un punto de medida de 4 carriles uno de los carriles no está funcionando).
+
+Según documenta [@metrics2018madrid], los atributos de ***los datos históricos del flujo de tráfico tomados por los Puntos de Medida** son los siguientes:
+
+
+  ------------------------------------------------------------------------------
+  Nombre                 Tipo     Descripción
+  ---------------------- -------- ----------------------------------------------
+  id                     Entero   Identificación única del Punto de Medida en
+                                  los sistemas de control del tráfico del
+                                  Ayuntamiento de Madrid.
+
+  fecha                  Fecha    Fecha y hora oficiales de Madrid con formato
+                                  **yyyy-mm-dd hh:mi:ss**
+
+  tipo\_elem             Texto    Nombre del Tipo de Punto de Medida: **Urbano**
+                                  o **M30**.
+
+  Intensidad             Entero   Intensidad del Punto de Medida en el periodo
+                                  de **15 minutos (vehículos/hora)**. Un valor
+                                  negativo implica la ausencia de datos.
+
+  ocupacion              Entero   Tiempo de Ocupación del Punto de Medida en el
+                                  periodo de **15 minutos (%)**. Un valor
+                                  negativo implica la ausencia de datos.
+
+  carga                  Entero   Carga de vehículos en el periodo de **15
+                                  minutos**. Parámetro que tiene en cuenta
+                                  intensidad, ocupación y capacidad de la vía y
+                                  establece el **grado de uso de la vía de 0 a
+                                  100**. Un valor negativo implica la ausencia
+                                  de datos.
+
+  vmed                   Entero   Velocidad media de los vehículos en el periodo
+                                  de **15 minutos (Km./h)**. *Sólo para puntos
+                                  de medida interurbanos M30*. Un valor negativo
+                                  implica la ausencia de datos.
+
+  error                  Texto    Indicación de si ha habido al menos una
+                                  muestra errónea o sustituida en el periodo de
+                                  **15 minutos**.</br>
+                                  **N**: no ha habido errores ni sustituciones </br>
+                                  **E**: los parámetros de calidad de alguna de las muestras integradas no son óptimos </br>
+                                  **S**: alguna de las muestras recibidas era totalmente errónea y no se ha integrado 
+
+  periodo\_integracion   Entero   Número de muestras recibidas y consideradas
+                                  para el periodo de integración.
+  ------------------------------------------------------------------------------
+
+  Table: Propiedades del conjunto de datos históricos del flujo de tráfico.
+
+
+Podemos observar una muestra de estos datos en la tabla \@ref(muestra-datos-flujo):
+
+
+```{r muestra-datos-flujo, fig.pos="H"}
+metrics <- get.parsed.metrics(y=2018, m=9)
+my.kable.scaled(head(metrics), 
+                caption = 'Muestra de datos históricos de flujo de tráfico (Septiembre 2018)')
+```
+
+
+### Análisis de los datos históricos del tráfico
+
+Revisando los datos históricos, observamos que a lo largo del tiempo, han cambiado tanto las propiedades de este conjunto de datos, como el formato de los archivos csv en dónde se almacenan, lo que ha conllevado un intenso ejercicio de saneado de la información previo a su explotación.  
+
+
+
+
+
+## Ubicación de los puntos de medida del tráfico
+
+La infraestructura de puntos de medida, disponible en la ciudad de Madrid se corresponde con:
+
+* **7.360 detectores de vehículos** con las siguientes carácterísticas:
+    * 71 incluyen dispositivos de lectura de matrículas
+    * 158 disponen de sistemas ópticos de visión artificial con control desde el Centro de Gestión de Movilidad
+    * 1.245 son específicos de vías rápidas y acceso a la ciudad
+    * y el resto de los 5.886, con sistemas básicos de control de semáforos.
+
+* **Más de 4.000 puntos de medida**:
+    * 253 con sistemas para el control de  velocidad, caracterización de los vehículos y doble lazo de lectura
+    * 70 de ellos conforman las estaciones de toma de aforos específicas de la ciudad.
+    
+Todos los puntos de medida tienen una ubicación fija que no cambia con el tiempo.
+
+Los atributos de los **Puntos de Medida** son:
+
+  ---------------------------------------------------------------------------
+  Nombre       Tipo     Descripción
+  ------------ -------- -----------------------------------------------------
+  cod\_cent    texto    Código de centralización en los sistemas y que se
+                        corresponde con el campo <código> de otros conjuntos
+                        de datos como el de intensidad del tráfico en tiempo
+                        real.
+
+  id           entero   Identificador único y permanente del punto de medida.
+
+  nombre       texto    Denominación del punto de medida, utilizándose la
+                        siguiente nomenclatura: <br/> Para los puntos de
+                        medida de tráfico urbano se identifica con la calle y
+                        orientación del sentido de la circulación. <br/> Para
+                        los puntos de vías rápida y accesos a Madrid se
+                        identifica con el punto kilométrico, la calzada y si
+                        se trata de la vía central, vía de servicio o un
+                        enlace.
+
+  tipo\_elem   texto    Descriptor de la tipología del punto de medida según
+                        la siguiente codificación: <br/> 
+                        **URB** (tráfico URBANO) para dispositivos de control semafórico. <br/> 
+                        **M-30** (tráfico INTERURBANO) para dispositivos de vías rápidas y accesos a Madrid.
+
+  x            real     Coordenada X\_UTM del centroide de la representación
+                        del polígono del punto de medida.
+
+  y            real     Coordenada Y\_UTM del centroide de la representación
+                        del polígono del punto de medida.
+  ---------------------------------------------------------------------------
+
+  Table: Propiedades del conjunto de puntos de medida del flujo de tráfico.
+
+
+## Muestra de los datos de ubicación de los puntos de medida
+
+[^puntos-de-medidad]: Datos ubicación de los puntos de medida para septiembre de 2018, [https://datos.madrid.es/egob/catalogo/202468-19-intensidad-trafico.zip](https://datos.madrid.es/egob/catalogo/202468-19-intensidad-trafico.zip)
+
+Podemos observar los datos del fichero con los puntos de medida[^puntos-de-medidad] en septiembre de 2018 (tabla \@ref(tab:muestra-datos-location))::
+
+
+```{r muestra-datos-location}
+locations <- get.parsed.location(2018,9,with.ym=T)
+my.kable.scaled(head(locations), 
+                caption='Muestra de la ubicación de los puntos de medida de septiembre 2018 en Madrid')
+```
+
+
+
+Y sus ubicaciones en un mapa:
+
+(ref:pointsmap) Mapa de localización de los Puntos de Medida
+
+```{r pointsmap, fig.cap='(ref:pointsmap)', out.width = "100%"}
+if (file.exists("images/locations_2018_09.jpg")) {
+    knitr::include_graphics("images/locations_2018_09.jpg")
+} else {
+    utms <- SpatialPoints(locations[, c("x", "y")], proj4string = CRS("+proj=utm +zone=30T"))
+    longlats <- as.data.frame(spTransform(utms, CRS("+proj=longlat")))
+    longlats$tipo_elem <- locations$tipo_elem
+    
+    pal <- colorFactor(c('green', 'blue'), domain = longlats$tipo_elem)
+    
+    m <- leaflet(as.data.frame(longlats)) %>%
+        addTiles() %>%
+        addCircles(~x, ~y, color = ~pal(tipo_elem), radius = 1) %>%
+        addLegend('bottomright', pal = pal, values = ~tipo_elem, title = "Tipo")
+    m # Now, save the image in images/locations_2018_09.jpg
+}
+```
+
+
+## Análisis exploratorio de los datos de flujo
+
+Revisamos los datos del mes de **septiembre de 2018**.
+
+Tenemos **`r nrow(metrics)`** registros recogidos desde **`r length(unique((metrics$id)))`** puntos de medida.
+
+Vemos un primer análisis de todas las variables del conjunto de datos (tabla \@ref(tab:summary-metrics)):
+
+
+```{r summary-metrics}
+my.kable.scaled(summary(metrics[,c("id","fecha","intensidad","ocupacion","carga",
+                                   "vmed","periodo_integracion")]), 
+                caption=' Resumen de propiedades de las variables del flujo de septiembre')
+```
+
+
+Agrupando por tipo de elemento, tabla \@ref(tab:contingencia-tipo-elem), tenemos los siguientes registros:
+
+```{r contingencia-tipo-elem}
+tmp <- as.data.frame(table(metrics$tipo_elem))
+colnames(tmp) <- c("Tipo de punto de medida", "Registros en Septiembre de 2018")
+my.kable.tiny(tmp, caption='Tabla de contingencia de los tipos de punto de medida')
+```
+
+
+Podemos explorar de forma visual si cada punto de medida dispone de un mismo número de registros:
+
+```{r, fig.cap="Histograma de tomas por punto de medida en Septiembre 2018"}
+location.freqs <- metrics %>% select(id) %>% arrange(id) %>% table %>% as.data.frame 
+colnames(location.freqs) <- c('device','freq')
+location.freqs$device <- as.integer(location.freqs$device)
+ggplot(location.freqs, aes(x = device, y = freq)) + 
+    geom_bar(stat = "identity") +
+    labs(x = "i-ésimo punto de medida", y = "Mediciones recibidas") 
+```
+
+Vemos que no es el caso; en particular, la tabla \@ref(tab:frecuencia-medidas-punto) de frecuencias de medidas por punto de medida tiene estas características:
+
+```{r frecuencia-medidas-punto}
+my.kable.tiny(summary(data.frame('Freqs'=location.freqs$freq)), 
+              caption='Resumen de propiedades de las frecuencias registrados por los puntos de medida')
+```
+
+Y con una desviación típica de **`r sd(location.freqs$freq)`**.
+
+Esto supone que en nuestro trabajo tendremos series temporales con huecos. Tendremos que determinar qué técnica seguimos para resolver esta situación.
+
+Por otro lado, podríamos hacer el mismo estudio considerando únicamente aquellos registros que se han etiquetado sin **"error"**. Sin embargo, para el mes de septiembre, ninguno de los registros viene caracterizado como erróneo.
+
+## Estudio de ciclos
+
+Podemos considerar unos pocos puntos de medida y representar el comportamiento de algunas de sus variables a lo largo del tiempo.
+
+Dado que tenemos mediciones cada 15 minutos y los flujos es de esperar que tengan patrones que se repitan semanalmente, se toma como frecuencia **4*24*7**.
+
+```{r, fig.cap="Intensidad del flujo de tráfico del punto de medida 1001 en septiembre de 2018"}
+metrics.1001 <- metrics[metrics$id == 1001,] 
+sorted.1001 <- metrics.1001[with(metrics.1001, order(fecha)), ]
+intensidad.1001 <- ts(sorted.1001$intensidad, frequency = 4*24*7)
+autoplot(intensidad.1001) + xlab('Semana')
+```
+
+Podemos intuir diferentes comportamientos: picos similares consecutivos que se presentan de 5 en 5 (días laborables de la semana) y picos de 2 en 2 (fines de semana).
+
+Podemos ver en el gráfico estacional que efectivamente, hay un patrón de comportamiento similar a lo largo de las horas del día.
+
+
+```{r, fig.cap="Polar seasonal plot: vehículos/hora del punto de medida 1001"}
+ggseasonplot(intensidad.1001, polar = TRUE) + ylab("vehículos/hora")
+```
+
+*NOTA: en el gráfico anterior, el label "year" debeería ser "semana". *
+
+Podemos hacer la misma visualización para el atributo **ocupacion**:
+
+
+```{r, fig.cap="Ocupacion del flujo de tráfico del punto de medida 1001 en septiembre de 2018"}
+ocupacion.1001 <- ts(sorted.1001$ocupacion, frequency = 4*24*7)
+grid.arrange(autoplot(ocupacion.1001) + xlab('Semana'), 
+             ggseasonplot(ocupacion.1001, polar = TRUE) + ylab("tiempo de ocupación (%)"),
+             nrow = 1, ncol = 2)
+```
+
+Y para el atributo **vmed**:
+
+
+```{r, fig.cap="Velocidad media del flujo de tráfico del punto de medida 1001 en septiembre de 2018"}
+vmed.1001 <- ts(sorted.1001$vmed, frequency = 4*24*7)
+grid.arrange(autoplot(vmed.1001) + xlab('Semana'), 
+             ggseasonplot(vmed.1001, polar = TRUE) + ylab("km/h"),
+             nrow = 1, ncol = 2)
+```
+
+
+
+
+
+
+
+
